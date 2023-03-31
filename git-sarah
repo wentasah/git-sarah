@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+set -e -o pipefail
+
+OPTS_SPEC="\
+git sarah <host> <remote_dir> [ -- ] [ command ... ]
+
+git stash and run at host
+--
+h,help    show the help
+"
+eval "$(echo "$OPTS_SPEC" | git rev-parse --parseopt -- "$@" || echo exit $?)"
+echo "$*"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+	-h) exit 0;;
+	--) shift; break;;
+    esac
+    shift
+done
+
+HOST=${1:?Host not specified}; shift
+DIR=${1:?Remote directory not specified}; shift
+PREFIX=$(git rev-parse --show-prefix)
+
+worktree=$(git stash create)
+worktree=${worktree:-HEAD}
+
+git push -f "$HOST:$DIR" "$worktree":refs/heads/git-sarah
+
+# Use ssh to translate possibly relative $DIR to the absolute one.
+ABS_DIR=$(ssh "$HOST" "cd '$DIR' && pwd")
+
+# Run the command at $HOST and translate its output so that
+# file/directory names appear as on localhost. Use perl's \Q to limit
+# the possibility of interpreting ABS_DIR as a search pattern.
+ssh "$HOST" "cd '$DIR' && git -c advice.detachedHead='' checkout --detach git-sarah && cd $PREFIX && ${*:?Command not specified}" \
+    |& perl -pe "s|\Q${ABS_DIR}\E|$(git rev-parse --show-toplevel)|g"
