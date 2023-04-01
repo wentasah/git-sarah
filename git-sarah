@@ -28,11 +28,14 @@ worktree=${worktree:-HEAD}
 
 git push -f "$HOST:$DIR" "$worktree":refs/heads/git-sarah
 
+# If no command is specified, execute no-op (:)
+[[ -z "$*" ]] && set :
+
 # Use ssh to translate possibly relative $DIR to the absolute one.
 ABS_DIR=$(ssh "$HOST" "cd '$DIR' && pwd")
 
 # Run the command at $HOST and translate its output so that
 # file/directory names appear as on localhost. Use perl's \Q to limit
 # the possibility of interpreting ABS_DIR as a search pattern.
-ssh -t "$HOST" "cd '$DIR' && git -c advice.detachedHead='' checkout --detach git-sarah && cd './$PREFIX' && ${*:?Command not specified}" \
+ssh -t "$HOST" "cd '$DIR' && git -c advice.detachedHead='' checkout --detach git-sarah && cd './$PREFIX' && $*" \
     |& perl -pe "s|\Q${ABS_DIR}\E|$(git rev-parse --show-toplevel)|g"
