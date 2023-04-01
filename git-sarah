@@ -34,5 +34,5 @@ ABS_DIR=$(ssh "$HOST" "cd '$DIR' && pwd")
 # Run the command at $HOST and translate its output so that
 # file/directory names appear as on localhost. Use perl's \Q to limit
 # the possibility of interpreting ABS_DIR as a search pattern.
-ssh "$HOST" "cd '$DIR' && git -c advice.detachedHead='' checkout --detach git-sarah && cd './$PREFIX' && ${*:?Command not specified}" \
+ssh -t "$HOST" "cd '$DIR' && git -c advice.detachedHead='' checkout --detach git-sarah && cd './$PREFIX' && ${*:?Command not specified}" \
     |& perl -pe "s|\Q${ABS_DIR}\E|$(git rev-parse --show-toplevel)|g"
