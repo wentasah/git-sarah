@@ -4,23 +4,43 @@ set -e -o pipefail
 
 OPTS_SPEC="\
 git sarah <host> <remote_dir> [ -- ] [ command ... ]
+git sarah -r <git remote> [ -- ] [ command ... ]
 
 git stash and run at host
 --
+r,remote=name determine <host> and <remote_dir> from git remote repository, e.g., origin
+
 h,help    show the help
 "
 eval "$(echo "$OPTS_SPEC" | git rev-parse --parseopt -- "$@" || echo exit $?)"
 echo "$*"
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        -r)
+            remote=$2
+            shift;;
 	-h) exit 0;;
 	--) shift; break;;
     esac
     shift
 done
 
-HOST=${1:?Host not specified}; shift
-DIR=${1:?Remote directory not specified}; shift
+if [[ -n $remote ]]; then
+    url=$(git config --get "remote.$remote.url")
+    if [[ $url =~ ^ssh:// ]]; then
+        tmp=${url#ssh://}
+        HOST=${tmp%%/*}
+        DIR=${tmp#*/}
+    else
+        # OpenSSH syntax
+        HOST=${url%%:*}
+        DIR=${url#*:}
+    fi
+else
+    HOST=${1:?Host not specified}; shift
+    DIR=${1:?Remote directory not specified}; shift
+fi
+
 PREFIX=$(git rev-parse --show-prefix)
 
 worktree=$(git stash create)
